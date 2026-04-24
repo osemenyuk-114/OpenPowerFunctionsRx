@@ -198,20 +198,11 @@ int main()
 
     IoInit();
 
-#if defined(ATTINY84)
-    while (BUTTON_PUSHED)
-        ;
-#endif
-
     power_adc_disable();
     power_usi_disable();
 
     // --- Channel / output initialization ---
-#if defined(ATTINY84)
-    eeprom_busy_wait();
-    channelnumber = (eeprom_read_byte(EEPROM_ADDRESS_CHANNEL) & 0x03);
-    channeloutput = 0; // A = RED, B = BLUE (fixed on board 84)
-#elif defined(ATTINY85)
+#if defined(ATTINY85)
     sleep_disable();
     eeprom_busy_wait();
     channelnumber = (eeprom_read_byte(EEPROM_ADDRESS_CHANNEL) & 0x03);
@@ -223,8 +214,12 @@ int main()
 
     eeprom_busy_wait();
     channelnumber = (eeprom_read_byte(EEPROM_ADDRESS_CHANNEL) & 0x03);
+#ifdef EEPROM_ADDRESS_CHANNEL_OUTPUT
     eeprom_busy_wait();
     channeloutput = (eeprom_read_byte(EEPROM_ADDRESS_CHANNEL_OUTPUT)) & 0x01;
+#else
+    channeloutput = 0;
+#endif
 #else
     channelnumber = 0;
     channeloutput = 0;
@@ -404,7 +399,7 @@ int main()
             }
         }
 
-        // --- Process deferred external interrupt (boards 84, 45) ---
+        // --- Process deferred external interrupt (boards 84, 85 DuploTrain) ---
 #if !defined(ATTINY85)
         if (externalint)
         {
@@ -500,39 +495,8 @@ int main()
         }
 #endif
 
-        // --- Board 84: polling channel button ---
-#if defined(ATTINY84)
-        if (BUTTON_PUSHED)
-        {
-            uint8_t push_8ms = 0;
-            cli();
-
-            while (BUTTON_PUSHED)
-            {
-                for (uint16_t tempvar = 0; tempvar < 65000; tempvar++)
-                    ;
-
-                if (push_8ms <= 100)
-                    ++push_8ms;
-            }
-
-            if (push_8ms > 99)
-                ; // long press: do nothing on board 84
-            else
-            {
-                uint8_t temp_channel = (channel_pwm.channel_number + 1) & 0x03;
-                OpenPfRx_channel_init((struct OpenPfRx_channel *)&channel_pwm, temp_channel);
-                eeprom_busy_wait();
-                eeprom_write_byte(EEPROM_ADDRESS_CHANNEL, temp_channel);
-                ResetPWMChannel(&channel_pwm);
-            }
-
-            sei();
-        }
-#endif
-
-        // --- Board 45: polling channel button with output swap ---
-#if defined(ATTINY85_DUPLO_TRAIN) && defined(ChannelButtonEnabled)
+        // --- Polling channel button (boards 84, 85 DuploTrain) ---
+#if defined(ChannelButtonEnabled) && !defined(ATTINY85)
         if (CHBUTTON_PUSHED)
         {
             uint8_t push_8ms = 0;
@@ -547,20 +511,20 @@ int main()
                     ++push_8ms;
             }
 
-            uint8_t temp_channel;
+            uint8_t temp_channel = (channel_pwm.channel_number) & 0x03;
 
             if (push_8ms > 99)
             {
+#ifdef EEPROM_ADDRESS_CHANNEL_OUTPUT
                 channeloutput ^= 0x01;
 
 #if (NumberOfOutputChannels == 2)
                 secondchannel = channeloutput ^ 0x01;
 #endif
 
-                temp_channel = (channel_pwm.channel_number) & 0x03;
-
                 eeprom_busy_wait();
                 eeprom_write_byte(EEPROM_ADDRESS_CHANNEL_OUTPUT, channeloutput);
+#endif
             }
             else
             {
@@ -570,7 +534,6 @@ int main()
             }
 
             OpenPfRx_channel_init((struct OpenPfRx_channel *)&channel_pwm, temp_channel);
-
             ResetPWMChannel(&channel_pwm);
             sei();
         }

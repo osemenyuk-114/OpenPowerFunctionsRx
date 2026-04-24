@@ -15,7 +15,7 @@
 
 #include "openpf.h"
 
-uint8_t OpenPfRxOutputModePwmLUT[16][2] = // Used for single output mode (pwm) and for combopwm mode
+uint8_t OpenPfRxOutputModePwmLUT[16][2] = // Used for single output mode (pwm) and for combo pwm mode
     {
         {PWM_OFF, OM_FLOAT},
         {PWM_STEP1, OM_FWD},

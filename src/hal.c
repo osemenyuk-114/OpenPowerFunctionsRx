@@ -39,6 +39,7 @@ void Setup105usclock()
 
 void IoInit()
 {
+    // Board-specific pin direction and output setup
 #if defined(ATTINY84)
     DDRA = 0;
     DDRB = 0;
@@ -46,10 +47,7 @@ void IoInit()
     PORTB = 0xFF;
     A_PORT |= (A_C1 | A_C2 | B_C1 | B_C2);
     DDRA |= (A_C1 | A_C2 | B_C1 | B_C2);
-    BUTTON_DDR &= ~BUTTONPINMASK; // pullup on button pin
-    BUTTON_PORT |= BUTTONPINMASK; // pullup on button pin
     BICOLOR_LED_OUTPUTS;
-
 #elif defined(ATTINY85)
 #if (NumberOfOutputChannels == 1)
     DDRB = A_C1 | A_C2 | IR_POWER;
@@ -57,13 +55,6 @@ void IoInit()
     DDRB = A_C1 | A_C2 | B_C1 | B_C2;
 #endif
     PORTB = 0;
-    BUTTON_DDR &= ~CHBUTTON; // pullup on button pin
-    BUTTON_PORT |= CHBUTTON; // pullup on button pin
-#ifdef StartButtonEnabled
-    BUTTON_DDR &= ~STBUTTON; // pullup on button pin
-    BUTTON_PORT |= STBUTTON; // pullup on button pin
-#endif
-
 #elif defined(ATTINY85_DUPLO_TRAIN)
 #if (NumberOfOutputChannels == 1)
     DDRB = A_C1 | A_C2;
@@ -71,14 +62,16 @@ void IoInit()
     DDRB = A_C1 | A_C2 | B_C1 | B_C2;
 #endif
     PORTB = 0;
-#ifdef ChannelButtonEnabled
-    BUTTON_DDR &= ~CHBUTTON; // pullup on button pin
-    BUTTON_PORT |= CHBUTTON; // pullup on button pin
 #endif
-#ifdef StartButtonEnabled
-    BUTTON_DDR &= ~STBUTTON; // pullup on button pin
-    BUTTON_PORT |= STBUTTON; // pullup on button pin
+
+    // Button pull-up setup (common for all boards)
+#ifdef CHBUTTON
+    BUTTON_DDR &= ~CHBUTTON;
+    BUTTON_PORT |= CHBUTTON;
 #endif
+#ifdef STBUTTON
+    BUTTON_DDR &= ~STBUTTON;
+    BUTTON_PORT |= STBUTTON;
 #endif
 }
 

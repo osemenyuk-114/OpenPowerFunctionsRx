@@ -4,11 +4,11 @@ Open-source firmware for Lego Power Functions IR receivers, based on vsluiter's 
 
 ## Board Configurations
 
-| PlatformIO Environment | Define | MCU | Channels | Features |
-|---|---|---|---|---|
-| `attiny84` | `ATTINY84` | ATtiny84 | 2 | 16-bit Timer1, PORTA outputs, bicolor LED, channel button |
-| `attiny85` | `ATTINY85` | ATtiny85 | 1 | IR power control, WDT deep sleep, start button, ISR-driven channel button |
-| `attiny85_duplo` | `ATTINY85_DUPLO_TRAIN` | ATtiny85 | 1 | Channel button with output swap, PWM timer restart |
+| PlatformIO Environment | Define                 | MCU      | Channels | Features                                                                  |
+|------------------------|------------------------|----------|----------|---------------------------------------------------------------------------|
+| `attiny84`             | `ATTINY84`             | ATtiny84 | 2        | 16-bit Timer1, PORTA outputs, bicolor LED, channel button                 |
+| `attiny85`             | `ATTINY85`             | ATtiny85 | 1        | IR power control, WDT deep sleep, start button, ISR-driven channel button |
+| `attiny85_duplo`       | `ATTINY85_DUPLO_TRAIN` | ATtiny85 | 1        | Channel button with output swap, PWM timer restart                        |
 
 ## Building
 
@@ -29,9 +29,15 @@ pio run -e attiny85_duplo -t upload
 
 All targets use bare-metal AVR-GCC (no framework) with 8 MHz internal oscillator.
 
+## Firmware Output
+
+After building, firmware hex files for each environment are automatically copied to the `firmware/` directory with names matching the PlatformIO environment (e.g., `attiny84.hex`, `attiny85.hex`, `attiny85_duplo.hex`).
+
+You can find the ready-to-flash files in the `firmware` folder after any successful build.
+
 ## Project Structure
 
-```
+```text
 src/
   hal.h      - Board-specific hardware abstraction (pin mappings, timer macros, feature flags)
   hal.c      - Hardware initialization (I/O, PWM timer, 105µs clock)
@@ -41,6 +47,12 @@ src/
 ```
 
 Board selection is done via preprocessor defines (`-DATTINY84`, `-DATTINY85`, or `-DATTINY85_DUPLO_TRAIN`) passed as compiler flags in `platformio.ini`.
+
+## TODO
+
+- [ ] Create schematics diagrams
+- [ ] Document how to program MCUs and set fuses
+- [ ] Add IR receiver to the Duplo Train Base (5135c01 / 5135cx1)
 
 ## License
 

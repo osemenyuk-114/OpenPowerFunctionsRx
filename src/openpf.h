@@ -150,7 +150,7 @@ static inline void OpenPfRx105usState()
 {
     if (OpenPfRx_rx.periodcounter > IR_LENGTH_TIMEOUT)
     {
-        if (OpenPfRx_rx.state == WAIT_FOR_STOP) // stop bit succesfully received; no IR during pause
+        if (OpenPfRx_rx.state == WAIT_FOR_STOP) // stop bit successfully received; no IR during pause
             OpenPfRx_rx.newdata = 1;
 
         OpenPfRx_rx.state = IDLE;

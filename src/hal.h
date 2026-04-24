@@ -33,6 +33,8 @@
 #define ExternalInterruptFalling 0b10
 // Clear Timer, restart counting
 #define RESET_IR_TIMER TCNT0 = 0
+#define DISABLE_IR_INT GIMSK &= ~(_BV(INT0))
+#define ENABLE_IR_INT GIMSK |= _BV(INT0)
 
 // ============================================================================
 // Board 84: ATtiny84
@@ -40,14 +42,13 @@
 #if defined(ATTINY84)
 
 #define NumberOfOutputChannels 2
+#define ChannelButtonEnabled
 typedef uint16_t pwm_reg_t;
 
 #define PWMCLK (_BV(CS11) | _BV(CS10))
 #define START_PWM_TIMER TCCR1B |= PWMCLK
 #define RESET_PWM_TIMER TCNT1 = 1;
 #define STOP_PWM_TIMER TCCR1B &= 0xF8;
-#define DISABLE_IR_INT GIMSK &= ~(_BV(INT0))
-#define ENABLE_IR_INT GIMSK |= _BV(INT0)
 #define TIMER_105US TIM0_COMPA_vect
 #define EXTERNAL_INTERRUPT EXT_INT0_vect
 #define PWMTIMER_PERIODSTART TIM1_CAPT_vect
@@ -67,8 +68,8 @@ typedef uint16_t pwm_reg_t;
 #define BUTTON_PORT PORTA
 #define BUTTON_PIN PINA
 #define BUTTON_DDR DDRA
-#define BUTTONPINMASK _BV(PINA7)
-#define BUTTON_PUSHED ((~BUTTON_PIN) & BUTTONPINMASK)
+#define CHBUTTON _BV(PINA7)
+#define CHBUTTON_PUSHED ((~BUTTON_PIN) & CHBUTTON)
 #define BICOLOR_LED_OUTPUTS DDRB |= 0x3;
 #define BICOLOR_RED PORTB = (PORTB | 0x03) & ~0x01
 #define BICOLOR_GREEN PORTB = (PORTB | 0x03) & ~0x02
@@ -83,8 +84,6 @@ typedef uint16_t pwm_reg_t;
 typedef uint8_t pwm_reg_t;
 
 #define PWMCLK (_BV(CS12) | _BV(CS11))
-#define DISABLE_IR_INT GIMSK &= ~(_BV(INT0))
-#define ENABLE_IR_INT GIMSK |= _BV(INT0)
 #define TIMER_105US TIMER0_COMPA_vect
 #define EXTERNAL_INTERRUPT INT0_vect
 #define PWMTIMER_PERIODSTART TIMER1_OVF_vect
@@ -131,7 +130,7 @@ typedef uint8_t pwm_reg_t;
 #endif
 
 // ============================================================================
-// Board 45: ATtiny45 (DuploTrain)
+// Board 85 DuploTrain: ATtiny85 (DuploTrain)
 // ============================================================================
 #elif defined(ATTINY85_DUPLO_TRAIN)
 
@@ -144,8 +143,6 @@ typedef uint8_t pwm_reg_t;
 #define START_PWM_TIMER TCCR1 |= PWMCLK
 #define RESET_PWM_TIMER TCNT1 = 1;
 #define STOP_PWM_TIMER TCCR1 &= 0xF0;
-#define DISABLE_IR_INT GIMSK &= ~(_BV(INT0))
-#define ENABLE_IR_INT GIMSK |= _BV(INT0)
 #define TIMER_105US TIMER0_COMPA_vect
 #define EXTERNAL_INTERRUPT INT0_vect
 #define PWMTIMER_PERIODSTART TIMER1_OVF_vect
