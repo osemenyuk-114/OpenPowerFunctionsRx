@@ -137,13 +137,12 @@ struct OpenPfRx_receiver OpenPfRx_rx;
 void OpenPfRx_channel_init(struct OpenPfRx_channel *, uint8_t);
 uint8_t OpenPfRxVerifyChecksum(uint16_t);
 void OpenPfRxPinInterruptState();
-void OpenPfRxInterpreter(const uint16_t *, struct OpenPfRx_channel *);
-
-void OpenPfRxComboPWMMode(const uint16_t *, struct OpenPfRx_channel *);
-void OpenPfRxExtendedMode(const uint16_t *, struct OpenPfRx_channel *);
-void OpenPfRxComboDirectMode(const uint16_t *, struct OpenPfRx_channel *);
-void OpenPfRxSingleOutputMode(const uint16_t *, struct OpenPfRx_channel *);
-uint8_t OpenPfRxVerifyToggleBit(const uint16_t *, struct OpenPfRx_channel *);
+void OpenPfRxInterpreter(const uint16_t *, volatile struct OpenPfRx_channel *);
+void OpenPfRxComboPWMMode(const uint16_t *, volatile struct OpenPfRx_channel *);
+void OpenPfRxExtendedMode(const uint16_t *, volatile struct OpenPfRx_channel *);
+void OpenPfRxComboDirectMode(const uint16_t *, volatile struct OpenPfRx_channel *);
+void OpenPfRxSingleOutputMode(const uint16_t *, volatile struct OpenPfRx_channel *);
+uint8_t OpenPfRxVerifyToggleBit(const uint16_t *, volatile struct OpenPfRx_channel *);
 uint8_t OpenPfRxGetChannelNumber(uint16_t);
 
 static inline void OpenPfRx105usState()

@@ -34,13 +34,32 @@ Lego PowerFunctions RC v1.2
 #define EEPROM_ADDRESS_CHANNEL_OUTPUT (uint8_t *)1
 #endif
 
-uint8_t pwmport;
-pwm_reg_t pwma;
+// Button timing constants
+#define BUTTON_DEBOUNCE_DELAY 65000UL
+#define BUTTON_SHORT_PRESS_TICKS 100
+#define BUTTON_LONG_PRESS_TICKS 99
+#define BUTTON_VERY_LONG_PRESS_TICKS 9523
+
+// EEPROM helpers
+static inline uint8_t eeprom_read_u8(const uint8_t *addr)
+{
+    eeprom_busy_wait();
+    return eeprom_read_byte((uint8_t *)addr);
+}
+
+static inline void eeprom_write_u8(const uint8_t *addr, uint8_t value)
+{
+    eeprom_busy_wait();
+    eeprom_write_byte((uint8_t *)addr, value);
+}
+
+volatile uint8_t pwmport;
+volatile pwm_reg_t pwma;
 struct OpenPfRx_channel channel_pwm;
 volatile uint8_t ocr1_mask_a = 0xFF;
 
 #if (NumberOfOutputChannels == 2)
-pwm_reg_t pwmb;
+volatile pwm_reg_t pwmb;
 volatile uint8_t ocr1_mask_b = 0xFF;
 volatile uint8_t ocr1_mask_both = 0xFF;
 #endif
@@ -52,12 +71,12 @@ static void UpdateOutputValues(struct OpenPfRx_output *);
 static void ResetPWMChannel(struct OpenPfRx_channel *);
 
 #if defined(ATTINY85) && defined(StartButtonEnabled)
-uint8_t sleepcounter = 0;
+volatile uint8_t sleepcounter = 0;
 #endif
 
 #if defined(ATTINY85)
-uint16_t ChButtonHoldTime = 0;
-uint8_t ChButtonState = 0;
+volatile uint16_t ChButtonHoldTime = 0;
+volatile uint8_t ChButtonState = 0;
 #endif
 
 // ============================================================================
@@ -204,19 +223,15 @@ int main()
     // --- Channel / output initialization ---
 #if defined(ATTINY85)
     sleep_disable();
-    eeprom_busy_wait();
-    channelnumber = (eeprom_read_byte(EEPROM_ADDRESS_CHANNEL) & 0x03);
-    eeprom_busy_wait();
-    channeloutput = (eeprom_read_byte(EEPROM_ADDRESS_CHANNEL_OUTPUT)) & 0x01;
+    channelnumber = (eeprom_read_u8(EEPROM_ADDRESS_CHANNEL) & 0x03);
+    channeloutput = (eeprom_read_u8(EEPROM_ADDRESS_CHANNEL_OUTPUT)) & 0x01;
 #elif defined(ChannelButtonEnabled)
     while (CHBUTTON_PUSHED)
         ;
 
-    eeprom_busy_wait();
-    channelnumber = (eeprom_read_byte(EEPROM_ADDRESS_CHANNEL) & 0x03);
+    channelnumber = (eeprom_read_u8(EEPROM_ADDRESS_CHANNEL) & 0x03);
 #ifdef EEPROM_ADDRESS_CHANNEL_OUTPUT
-    eeprom_busy_wait();
-    channeloutput = (eeprom_read_byte(EEPROM_ADDRESS_CHANNEL_OUTPUT)) & 0x01;
+    channeloutput = (eeprom_read_u8(EEPROM_ADDRESS_CHANNEL_OUTPUT)) & 0x01;
 #else
     channeloutput = 0;
 #endif
@@ -435,35 +450,30 @@ int main()
                     ChButtonHoldTime++;
                 else
                 {
-                    if (ChButtonHoldTime > 95)
+                    if (ChButtonHoldTime > BUTTON_LONG_PRESS_TICKS)
                     {
+                        uint8_t sreg = SREG;
                         cli();
-
                         uint8_t temp_channel;
 
-                        if (ChButtonHoldTime > 9523)
+                        if (ChButtonHoldTime > BUTTON_VERY_LONG_PRESS_TICKS)
                         {
                             channeloutput ^= 0x01;
-
 #if (NumberOfOutputChannels == 2)
                             secondchannel = channeloutput ^ 0x01;
 #endif
-
                             temp_channel = (channel_pwm.channel_number) & 0x03;
-
-                            eeprom_busy_wait();
-                            eeprom_write_byte(EEPROM_ADDRESS_CHANNEL_OUTPUT, channeloutput);
+                            eeprom_write_u8(EEPROM_ADDRESS_CHANNEL_OUTPUT, channeloutput);
                         }
                         else
                         {
                             temp_channel = (channel_pwm.channel_number + 1) & 0x03;
-                            eeprom_busy_wait();
-                            eeprom_write_byte(EEPROM_ADDRESS_CHANNEL, temp_channel);
+                            eeprom_write_u8(EEPROM_ADDRESS_CHANNEL, temp_channel);
                         }
 
                         OpenPfRx_channel_init((struct OpenPfRx_channel *)&channel_pwm, temp_channel);
                         ResetPWMChannel(&channel_pwm);
-                        sei();
+                        SREG = sreg;
                     }
 
                     ChButtonState = 0;
@@ -500,42 +510,39 @@ int main()
         if (CHBUTTON_PUSHED)
         {
             uint8_t push_8ms = 0;
+            uint8_t sreg = SREG;
             cli();
 
             while (CHBUTTON_PUSHED)
             {
-                for (uint16_t tempvar = 0; tempvar < 65000; tempvar++)
+                for (uint16_t tempvar = BUTTON_DEBOUNCE_DELAY; tempvar < BUTTON_DEBOUNCE_DELAY; tempvar++)
                     ;
 
-                if (push_8ms <= 100)
+                if (push_8ms <= BUTTON_SHORT_PRESS_TICKS)
                     ++push_8ms;
             }
 
             uint8_t temp_channel = (channel_pwm.channel_number) & 0x03;
 
-            if (push_8ms > 99)
+            if (push_8ms > BUTTON_LONG_PRESS_TICKS)
             {
 #ifdef EEPROM_ADDRESS_CHANNEL_OUTPUT
                 channeloutput ^= 0x01;
-
 #if (NumberOfOutputChannels == 2)
                 secondchannel = channeloutput ^ 0x01;
 #endif
-
-                eeprom_busy_wait();
-                eeprom_write_byte(EEPROM_ADDRESS_CHANNEL_OUTPUT, channeloutput);
+                eeprom_write_u8(EEPROM_ADDRESS_CHANNEL_OUTPUT, channeloutput);
 #endif
             }
             else
             {
                 temp_channel = (channel_pwm.channel_number + 1) & 0x03;
-                eeprom_busy_wait();
-                eeprom_write_byte(EEPROM_ADDRESS_CHANNEL, temp_channel);
+                eeprom_write_u8(EEPROM_ADDRESS_CHANNEL, temp_channel);
             }
 
             OpenPfRx_channel_init((struct OpenPfRx_channel *)&channel_pwm, temp_channel);
             ResetPWMChannel(&channel_pwm);
-            sei();
+            SREG = sreg;
         }
 #endif
     }

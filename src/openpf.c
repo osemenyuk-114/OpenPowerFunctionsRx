@@ -139,7 +139,7 @@ void OpenPfRxPinInterruptState()
     OpenPfRx_rx.periodcounter = IR_LENGTH_INIT;
 }
 
-void OpenPfRxInterpreter(const uint16_t *rxdata, struct OpenPfRx_channel *channel)
+void OpenPfRxInterpreter(const uint16_t *rxdata, volatile struct OpenPfRx_channel *channel)
 {
     if (*rxdata & OpenPfRx_ESCAPE_MASK) // if Extended mode because 'E' bit is set
         OpenPfRxComboPWMMode(rxdata, channel);
@@ -160,7 +160,7 @@ void OpenPfRxInterpreter(const uint16_t *rxdata, struct OpenPfRx_channel *channe
     }
 }
 
-void OpenPfRxComboPWMMode(const uint16_t *rxdata, struct OpenPfRx_channel *channel)
+void OpenPfRxComboPWMMode(const uint16_t *rxdata, volatile struct OpenPfRx_channel *channel)
 {
     // use lookup table for pwm mode
     uint8_t dataRED = (*rxdata & OpenPfRx_OUTPUTA_MASK) >> 4;
@@ -175,7 +175,7 @@ void OpenPfRxComboPWMMode(const uint16_t *rxdata, struct OpenPfRx_channel *chann
     channel->channel_output[BLUE].pwmvalue = OpenPfRx_pwmvalues[channel->channel_output[BLUE].pwmindex];
 }
 
-void OpenPfRxExtendedMode(const uint16_t *rxdata, struct OpenPfRx_channel *channel)
+void OpenPfRxExtendedMode(const uint16_t *rxdata, volatile struct OpenPfRx_channel *channel)
 {
     // Data determines function used
     // Toggle bit is verified
@@ -268,7 +268,7 @@ void OpenPfRxExtendedMode(const uint16_t *rxdata, struct OpenPfRx_channel *chann
     }
 }
 
-void OpenPfRxComboDirectMode(const uint16_t *rxdata, struct OpenPfRx_channel *channel)
+void OpenPfRxComboDirectMode(const uint16_t *rxdata, volatile struct OpenPfRx_channel *channel)
 {
     // timeout
     // toggle bit not verified
@@ -285,7 +285,7 @@ void OpenPfRxComboDirectMode(const uint16_t *rxdata, struct OpenPfRx_channel *ch
     channel->channel_output[BLUE].pwmvalue = OpenPfRx_pwmvalues[channel->channel_output[BLUE].pwmindex];
 }
 
-void OpenPfRxSingleOutputMode(const uint16_t *rxdata, struct OpenPfRx_channel *channel)
+void OpenPfRxSingleOutputMode(const uint16_t *rxdata, volatile struct OpenPfRx_channel *channel)
 {
     // Protocol used by LEGO 8879 remote control (inc/dec pwm, break then float)
     // Toggle bit verified for increment / decrement / toggle
@@ -572,7 +572,7 @@ void OpenPfRxSingleOutputMode(const uint16_t *rxdata, struct OpenPfRx_channel *c
 }
 
 // returns 1 if toggle bit is valid (new message)
-uint8_t OpenPfRxVerifyToggleBit(const uint16_t *rxdata, struct OpenPfRx_channel *channel)
+uint8_t OpenPfRxVerifyToggleBit(const uint16_t *rxdata, volatile struct OpenPfRx_channel *channel)
 {
     uint8_t toggle_bit = 0;
 
