@@ -18,25 +18,19 @@
 #include <avr/eeprom.h>
 #include <avr/sleep.h>
 #include <avr/power.h>
-#if defined(ATTINY85)
 #include <avr/wdt.h>
-#endif
 #include "hal.h"
 #include "openpf.h"
 
 /*
-Code is meant for 8MHz operation
-Lego PowerFunctions RC v1.2
+Code is intended for 8 MHz operation.
+LEGO Power Functions RC v1.2.
 */
 
 #define EEPROM_ADDRESS_CHANNEL (uint8_t *)0
-#if !defined(ATTINY84)
 #define EEPROM_ADDRESS_CHANNEL_OUTPUT (uint8_t *)1
-#endif
 
 // Button timing constants
-#define BUTTON_DEBOUNCE_DELAY 65000UL
-#define BUTTON_SHORT_PRESS_TICKS 100
 #define BUTTON_LONG_PRESS_TICKS 99
 #define BUTTON_VERY_LONG_PRESS_TICKS 9523
 
@@ -70,32 +64,26 @@ volatile uint8_t timerflag105us = 0;
 static void UpdateOutputValues(struct OpenPfRx_output *);
 static void ResetPWMChannel(struct OpenPfRx_channel *);
 
-#if defined(ATTINY85) && defined(StartButtonEnabled)
+#if defined(StartButtonEnabled)
 volatile uint8_t sleepcounter = 0;
 #endif
 
-#if defined(ATTINY85)
 volatile uint16_t ChButtonHoldTime = 0;
 volatile uint8_t ChButtonState = 0;
-#endif
 
 // ============================================================================
 // Interrupt Service Routines
 // ============================================================================
 
-ISR(EXTERNAL_INTERRUPT, ISR_NOBLOCK) // External Interrupt Handler
+ISR(EXTERNAL_INTERRUPT, ISR_NOBLOCK) // External interrupt handler
 {
-    // DISABLE_IR_INT; // Disable pin change interrupt. Enabled in timer interrupt routine.
+    // DISABLE_IR_INT; // Disable pin-change interrupt; timer ISR re-enables it.
     RESET_IR_TIMER;
 
-#if defined(ATTINY85)
     if (ChButtonState == 0)
         ChButtonState = 1;
 
-    OpenPfRxPinInterruptState(); // process counter/pin state to gather IR data
-#else
-    externalint = 1;
-#endif
+    OpenPfRxPinInterruptState(); // Process counter/pin state to gather IR data.
 }
 
 ISR(TIMER_105US, ISR_NOBLOCK)
@@ -104,7 +92,7 @@ ISR(TIMER_105US, ISR_NOBLOCK)
     timerflag105us = 1;
 }
 
-#if defined(ATTINY85) && defined(StartButtonEnabled)
+#if defined(StartButtonEnabled)
 ISR(STBUTTON_INTERRUPT)
 {
 }
@@ -116,29 +104,30 @@ ISR(WDT_VECT)
     if (sleepcounter > 15)
     {
         ResetPWMChannel(&channel_pwm);
-
-#if (NumberOfOutputChannels == 1)
         DISABLE_IR_INT;
+#ifdef IR_POWER
         DISABLE_IR_POWER;
+#endif
+#if (NumberOfOutputChannels == 1)
         A_PORT = (A_PORT & (~(A_C1 | A_C2))) | (pwmport & (A_C1 | A_C2));
 #else
         A_PORT = (A_PORT & (~(A_C1 | A_C2 | B_C1 | B_C2))) | (pwmport & (A_C1 | A_C2 | B_C1 | B_C2));
 #endif
 
-        BUTTON_PORT &= ~CHBUTTON; // disable pull-up on CH button pin
-        PCMSK = STBUTTON;
+        BUTTON_PORT &= ~CHBUTTON; // Disable pull-up on CH button pin.
+        PCINT_MASK = STBUTTON;
         ENABLE_STBUTTON_INTERRUPT;
-        WDTCR = _BV(WDCE) | _BV(WDE); // disable watchdog
-        WDTCR = 0x00;
+        WDT_CTRL = _BV(WDCE) | _BV(WDE); // Disable watchdog.
+        WDT_CTRL = 0x00;
         set_sleep_mode(SLEEP_MODE_PWR_DOWN);
         sleep_enable();
         sei();
         sleep_cpu();
-        // sleeping...
+        // Sleeping...
         sleep_disable();
         cli();
-        WDTCR = _BV(WDCE) | _BV(WDE); // enable watchdog to reset
-        WDTCR = _BV(WDE);             // time-out 16ms, reset
+        WDT_CTRL = _BV(WDCE) | _BV(WDE); // Enable watchdog reset.
+        WDT_CTRL = _BV(WDE);             // Timeout 16 ms, reset.
 
         while (1)
             ;
@@ -153,10 +142,6 @@ ISR(WDT_VECT)
 // PWM timer period start ISR
 ISR(PWMTIMER_PERIODSTART)
 {
-#if defined(ATTINY84) || defined(ATTINY85_DUPLO_TRAIN)
-    STOP_PWM_TIMER;
-#endif
-
 #if (NumberOfOutputChannels == 1)
     A_PORT = (A_PORT & (~(A_C1 | A_C2))) | (pwmport & (A_C1 | A_C2));
 #else
@@ -171,15 +156,10 @@ ISR(PWMTIMER_PERIODSTART)
     if (ocr1_mask_a == ocr1_mask_b)
     {
         ocr1_mask_both = ocr1_mask_a & ocr1_mask_b;
-        OCR1B = pwmb + 1; // always execute interrupt routine for PWMA first
+        OCR1B = pwmb + 1; // Always execute the PWMA interrupt routine first.
     }
     else
         ocr1_mask_both = 0xFF;
-#endif
-
-#if defined(ATTINY84) || defined(ATTINY85_DUPLO_TRAIN)
-    RESET_PWM_TIMER;
-    START_PWM_TIMER;
 #endif
 }
 
@@ -209,10 +189,10 @@ int main()
     uint8_t channeloutput;
     uint16_t legochannel[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
-#if defined(ATTINY85) && defined(StartButtonEnabled)
+#if defined(StartButtonEnabled)
     MCUSR &= ~(_BV(WDRF));
-    WDTCR = _BV(WDCE) | _BV(WDE);
-    WDTCR = _BV(WDIE) | _BV(WDP3) | _BV(WDP0); // time-out 8 second, watchdog interrupt enabled
+    WDT_CTRL = _BV(WDCE) | _BV(WDE);
+    WDT_CTRL = _BV(WDIE) | _BV(WDP3) | _BV(WDP0); // 8-second timeout, watchdog interrupt enabled.
 #endif
 
     IoInit();
@@ -221,24 +201,25 @@ int main()
     power_usi_disable();
 
     // --- Channel / output initialization ---
-#if defined(ATTINY85)
     sleep_disable();
-    channelnumber = (eeprom_read_u8(EEPROM_ADDRESS_CHANNEL) & 0x03);
-    channeloutput = (eeprom_read_u8(EEPROM_ADDRESS_CHANNEL_OUTPUT)) & 0x01;
-#elif defined(ChannelButtonEnabled)
-    while (CHBUTTON_PUSHED)
-        ;
-
-    channelnumber = (eeprom_read_u8(EEPROM_ADDRESS_CHANNEL) & 0x03);
-#ifdef EEPROM_ADDRESS_CHANNEL_OUTPUT
-    channeloutput = (eeprom_read_u8(EEPROM_ADDRESS_CHANNEL_OUTPUT)) & 0x01;
-#else
-    channeloutput = 0;
-#endif
-#else
-    channelnumber = 0;
-    channeloutput = 0;
-#endif
+    
+    // Initialize EEPROM on first startup (detect uninitialized state = 0xFF)
+    uint8_t eeprom_channel_raw = eeprom_read_u8(EEPROM_ADDRESS_CHANNEL);
+    uint8_t eeprom_output_raw = eeprom_read_u8(EEPROM_ADDRESS_CHANNEL_OUTPUT);
+    
+    if (eeprom_channel_raw == 0xFF && eeprom_output_raw == 0xFF)
+    {
+        // First startup: initialize with defaults (ch1 = 0, red output = 0)
+        eeprom_write_u8(EEPROM_ADDRESS_CHANNEL, 0);
+        eeprom_write_u8(EEPROM_ADDRESS_CHANNEL_OUTPUT, 0);
+        channelnumber = 0;
+        channeloutput = 0;
+    }
+    else
+    {
+        channelnumber = (eeprom_channel_raw & 0x03);
+        channeloutput = (eeprom_output_raw & 0x01);
+    }
 
 #if (NumberOfOutputChannels == 2)
     uint8_t secondchannel = channeloutput ^ 0x01;
@@ -247,7 +228,7 @@ int main()
     OpenPfRx_channel_init((struct OpenPfRx_channel *)&channel_pwm, channelnumber);
     SetupExternalInterrupt();
 
-#if defined(ATTINY85) && (NumberOfOutputChannels == 1)
+#ifdef IR_POWER
     ENABLE_IR_POWER;
 #endif
 
@@ -263,25 +244,12 @@ int main()
     OpenPfRx_rx.newdata = 0;
     sei(); // Enable interrupts
 
-#if !defined(ATTINY85)
-    set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-#endif
-
     // ========================================================================
     // Main loop
     // ========================================================================
     for (;;)
     {
-#if defined(ATTINY84)
-        static uint16_t red_led_downcounter = 0;
-
-        if (red_led_downcounter == 0)
-            BICOLOR_GREEN;
-        else
-            red_led_downcounter--;
-#endif
-
-#if defined(ATTINY85) && defined(StartButtonEnabled)
+#if defined(StartButtonEnabled)
         if (STBUTTON_PUSHED)
         {
             cli();
@@ -304,10 +272,6 @@ int main()
 
             if (OpenPfRxVerifyChecksum(OpenPfRx_rx.rxdata))
             {
-#if defined(ATTINY84)
-                BICOLOR_RED;
-                red_led_downcounter = 10000;
-#endif
                 channelnumber = OpenPfRxGetChannelNumber(OpenPfRx_rx.rxdata);
                 legochannel[channelnumber] = OpenPfRx_rx.rxdata;
 
@@ -326,7 +290,7 @@ int main()
                     uint8_t temp_var = ~(A_C1 | A_C2 | B_C1 | B_C2);
 #endif
 
-#if defined(ATTINY85) && defined(StartButtonEnabled)
+#if defined(StartButtonEnabled)
                     sleepcounter = 0;
 #endif
 
@@ -408,20 +372,10 @@ int main()
 #endif
 
                     pwmport = temp_var;
-                    sei();
                     SREG = c_sreg;
                 }
             }
         }
-
-        // --- Process deferred external interrupt (boards 84, 85 DuploTrain) ---
-#if !defined(ATTINY85)
-        if (externalint)
-        {
-            externalint = 0;
-            OpenPfRxPinInterruptState();
-        }
-#endif
 
         // --- 105us timer tick processing ---
         if (timerflag105us)
@@ -436,8 +390,6 @@ int main()
             if (channel_pwm.timeout)
                 --channel_pwm.timeout;
 
-#if defined(ATTINY85)
-            // --- Board 85: interrupt-driven channel button state machine ---
             if (ChButtonState == 1)
             {
                 ChButtonState = 2;
@@ -479,7 +431,6 @@ int main()
                     ChButtonState = 0;
                 }
             }
-#endif // defined(ATTINY85)
         }
 
         // --- Timeout handling ---
@@ -502,47 +453,6 @@ int main()
             channel_pwm.channel_output[secondchannel].pwmindex = PWM_FLOAT;
             pwmport &= ~(B_C1 | B_C2);
             ocr1_mask_b = 0xFF;
-        }
-#endif
-
-        // --- Polling channel button (boards 84, 85 DuploTrain) ---
-#if defined(ChannelButtonEnabled) && !defined(ATTINY85)
-        if (CHBUTTON_PUSHED)
-        {
-            uint8_t push_8ms = 0;
-            uint8_t sreg = SREG;
-            cli();
-
-            while (CHBUTTON_PUSHED)
-            {
-                for (uint16_t tempvar = BUTTON_DEBOUNCE_DELAY; tempvar < BUTTON_DEBOUNCE_DELAY; tempvar++)
-                    ;
-
-                if (push_8ms <= BUTTON_SHORT_PRESS_TICKS)
-                    ++push_8ms;
-            }
-
-            uint8_t temp_channel = (channel_pwm.channel_number) & 0x03;
-
-            if (push_8ms > BUTTON_LONG_PRESS_TICKS)
-            {
-#ifdef EEPROM_ADDRESS_CHANNEL_OUTPUT
-                channeloutput ^= 0x01;
-#if (NumberOfOutputChannels == 2)
-                secondchannel = channeloutput ^ 0x01;
-#endif
-                eeprom_write_u8(EEPROM_ADDRESS_CHANNEL_OUTPUT, channeloutput);
-#endif
-            }
-            else
-            {
-                temp_channel = (channel_pwm.channel_number + 1) & 0x03;
-                eeprom_write_u8(EEPROM_ADDRESS_CHANNEL, temp_channel);
-            }
-
-            OpenPfRx_channel_init((struct OpenPfRx_channel *)&channel_pwm, temp_channel);
-            ResetPWMChannel(&channel_pwm);
-            SREG = sreg;
         }
 #endif
     }

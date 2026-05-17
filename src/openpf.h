@@ -57,7 +57,7 @@ enum OpenPfRx_IR_LENGTH_VALUES
     IR_LENGTH_HI = 5,
     IR_LENGTH_START_STOP = 9,
     IR_LENGTH_TIMEOUT = 11
-}; // minimum number of 105 us periods for each value
+}; // Minimum number of 105 us periods for each value.
 
 enum OpenPfRx_MODES
 {
@@ -103,15 +103,14 @@ struct OpenPfRx_receiver
 {
     uint8_t bit_count;
     uint8_t state;
-    uint8_t periodcounter; // count each iteration of the timer
+    uint8_t periodcounter; // Count each timer tick.
     volatile uint16_t rxdata;
     volatile uint8_t newdata;
 };
 
 struct OpenPfRx_output
 {
-    // both the index and value are stored; to increment 'numerical' PWM value the value must be available,
-    // to increment PWM step the index must be available
+    // Store both index and value: numerical PWM uses pwmvalue, stepped PWM uses pwmindex.
     uint8_t pwmvalue;
     enum OpenPfRx_PWM_INDEX pwmindex;
     enum OpenPfRx_OUTPUT_MODES output_mode;
@@ -130,11 +129,11 @@ struct OpenPfRx_channel
     struct OpenPfRx_output channel_output[2];
 };
 
-// global definition
+// Global instance
 struct OpenPfRx_receiver OpenPfRx_rx;
 
 // function declarations
-void OpenPfRx_channel_init(struct OpenPfRx_channel *, uint8_t);
+void OpenPfRx_channel_init(volatile struct OpenPfRx_channel *, uint8_t);
 uint8_t OpenPfRxVerifyChecksum(uint16_t);
 void OpenPfRxPinInterruptState();
 void OpenPfRxInterpreter(const uint16_t *, volatile struct OpenPfRx_channel *);

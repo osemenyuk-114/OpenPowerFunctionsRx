@@ -19,56 +19,37 @@
 
 void SetupExternalInterrupt()
 {
-    // Init pin interrupt
+    // Initialize external interrupt.
     MCUCR = (MCUCR & 0xFC) | ExternalInterruptFalling; // Falling edge INT0 generates interrupt; Table 9-2
 }
 
 void Setup105usclock()
 {
-    // Timer0 CTC mode, overrun at OCR0A, CLK/8
+    // Timer0 CTC mode, compare at OCR0A, CLK/8.
     TCCR0A = _BV(WGM01);
     TCCR0B = _BV(CS01); // CTC mode, TOP is OCR0A, CLK = CLKio/8
     TCNT0 = 0;
-    OCR0A = 105; // 105us
-#if defined(ATTINY84)
-    TIMSK0 |= _BV(OCIE0A); // Output compare interrupt enabled
-#else
-    TIMSK |= _BV(OCIE0A); // Output compare interrupt enabled
-#endif
+    OCR0A = 105; // 105 us tick
+    ENABLE_TIMER_105US_INTERRUPT;
 }
 
 void IoInit()
 {
-    // Board-specific pin direction and output setup
-#if defined(ATTINY84)
-    DDRA = 0;
-    DDRB = 0;
-    PORTA = 0x00;
-    PORTB = 0xFF;
-    A_PORT |= (A_C1 | A_C2 | B_C1 | B_C2);
-    DDRA |= (A_C1 | A_C2 | B_C1 | B_C2);
-    BICOLOR_LED_OUTPUTS;
-#elif defined(ATTINY85)
-#if (NumberOfOutputChannels == 1)
-    DDRB = A_C1 | A_C2 | IR_POWER;
+#if (NumberOfOutputChannels == 2)
+    A_DDR = A_C1 | A_C2 | B_C1 | B_C2;
 #else
-    DDRB = A_C1 | A_C2 | B_C1 | B_C2;
-#endif
-    PORTB = 0;
-#elif defined(ATTINY85_DUPLO_TRAIN)
-#if (NumberOfOutputChannels == 1)
-    DDRB = A_C1 | A_C2;
-#else
-    DDRB = A_C1 | A_C2 | B_C1 | B_C2;
-#endif
-    PORTB = 0;
+    A_DDR = A_C1 | A_C2;
 #endif
 
-    // Button pull-up setup (common for all boards)
+#ifdef IR_POWER
+    A_DDR |= IR_POWER;
+#endif
+
 #ifdef CHBUTTON
     BUTTON_DDR &= ~CHBUTTON;
     BUTTON_PORT |= CHBUTTON;
 #endif
+
 #ifdef STBUTTON
     BUTTON_DDR &= ~STBUTTON;
     BUTTON_PORT |= STBUTTON;
@@ -81,14 +62,14 @@ void SetupPWMTimer()
     TCCR1A = 0;                                  // CTC
     TCCR1B = (_BV(WGM13) | _BV(WGM12) | PWMCLK); // IOclk/64
     TCCR1C = 0;
-    ICR1 = 108; // 1.15kHz output frequency
+    ICR1 = 108; // 1.15 kHz output frequency
     OCR1A = 20; // Value to turn off output A
     OCR1B = 20; // Value to turn off output B
     TCNT1 = 0;
     TIMSK1 = _BV(ICIE1);
 #else
     TCCR1 = _BV(PWM1A) | PWMCLK; // PWM mode, IOclk/32
-    OCR1C = 217;                 // 1.15kHz output frequency
+    OCR1C = 217;                 // 1.15 kHz output frequency
     OCR1A = 0;                   // Value to turn off output A
 #if (NumberOfOutputChannels == 2)
     GTCCR = _BV(PWM1B);

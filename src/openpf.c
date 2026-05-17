@@ -15,7 +15,7 @@
 
 #include "openpf.h"
 
-uint8_t OpenPfRxOutputModePwmLUT[16][2] = // Used for single output mode (pwm) and for combo pwm mode
+uint8_t OpenPfRxOutputModePwmLUT[16][2] = // Used for Single Output and Combo PWM modes.
     {
         {PWM_OFF, OM_FLOAT},
         {PWM_STEP1, OM_FWD},
@@ -53,7 +53,7 @@ uint8_t OpenPfRx_pwmvalues[] = {
     OpenPfRx_MAX_PWM_VALUE         // PWM_STEP7
 };
 
-void OpenPfRx_channel_init(struct OpenPfRx_channel *channel, uint8_t number)
+void OpenPfRx_channel_init(volatile struct OpenPfRx_channel *channel, uint8_t number)
 {
     channel->channel_number = number;
     channel->channel_output[RED].pwmvalue = PWM_OFF;
@@ -94,28 +94,28 @@ void OpenPfRxPinInterruptState()
 
     case WAIT_FOR_START:
     {
-        if (OpenPfRx_rx.periodcounter >= IR_LENGTH_START_STOP) // if no flanks have been detected between IDLE and START_STOP*105us
+        if (OpenPfRx_rx.periodcounter >= IR_LENGTH_START_STOP) // No flanks detected between IDLE and START/STOP threshold.
         {
-            OpenPfRx_rx.state = WAIT_FOR_BIT; // start reading data
+            OpenPfRx_rx.state = WAIT_FOR_BIT; // Start reading data.
             OpenPfRx_rx.bit_count = 0;
             OpenPfRx_rx.rxdata = 0;
         }
         else
-            OpenPfRx_rx.state = IDLE; // reset state machine if unexpected flank is detected
+            OpenPfRx_rx.state = IDLE; // Reset state machine on unexpected flank.
 
         break;
     }
 
     case WAIT_FOR_BIT:
     {
-        if ((OpenPfRx_rx.periodcounter >= IR_LENGTH_LO) && (OpenPfRx_rx.periodcounter <= IR_LENGTH_START_STOP)) // if pulse length within expected datalength
+        if ((OpenPfRx_rx.periodcounter >= IR_LENGTH_LO) && (OpenPfRx_rx.periodcounter <= IR_LENGTH_START_STOP)) // Pulse length is within expected data range.
         {
             if (OpenPfRx_rx.periodcounter > IR_LENGTH_HI)
-                OpenPfRx_rx.rxdata |= 1; // set bit in correct position
+                OpenPfRx_rx.rxdata |= 1; // Set bit in the current position.
 
             OpenPfRx_rx.bit_count++;
 
-            if (OpenPfRx_rx.bit_count == 16) // last bit
+            if (OpenPfRx_rx.bit_count == 16) // Last bit received.
                 OpenPfRx_rx.state = WAIT_FOR_STOP;
             else
                 OpenPfRx_rx.rxdata = (OpenPfRx_rx.rxdata << 1) & 0xFFFE;
@@ -126,7 +126,7 @@ void OpenPfRxPinInterruptState()
         break;
     }
 
-    case WAIT_FOR_STOP: // during Stop bit no IR data should be received. STOP bit length is monitored by timer interrupt function.
+    case WAIT_FOR_STOP: // During stop bit, no IR data should be received; timer ISR checks duration.
     {
         OpenPfRx_rx.state = IDLE;
         break;
@@ -141,7 +141,7 @@ void OpenPfRxPinInterruptState()
 
 void OpenPfRxInterpreter(const uint16_t *rxdata, volatile struct OpenPfRx_channel *channel)
 {
-    if (*rxdata & OpenPfRx_ESCAPE_MASK) // if Extended mode because 'E' bit is set
+    if (*rxdata & OpenPfRx_ESCAPE_MASK) // Extended mode when E bit is set.
         OpenPfRxComboPWMMode(rxdata, channel);
     else
     {
@@ -162,7 +162,7 @@ void OpenPfRxInterpreter(const uint16_t *rxdata, volatile struct OpenPfRx_channe
 
 void OpenPfRxComboPWMMode(const uint16_t *rxdata, volatile struct OpenPfRx_channel *channel)
 {
-    // use lookup table for pwm mode
+    // Use lookup tables for Combo PWM mode.
     uint8_t dataRED = (*rxdata & OpenPfRx_OUTPUTA_MASK) >> 4;
     uint8_t dataBLUE = (*rxdata & OpenPfRx_OUTPUTB_MASK) >> 8;
     channel->timeout_action = 1;
@@ -178,12 +178,12 @@ void OpenPfRxComboPWMMode(const uint16_t *rxdata, volatile struct OpenPfRx_chann
 void OpenPfRxExtendedMode(const uint16_t *rxdata, volatile struct OpenPfRx_channel *channel)
 {
     // Data determines function used
-    // Toggle bit is verified
-    // No timeout
+    // Toggle bit is verified.
+    // No timeout.
     uint8_t function = (*rxdata & OpenPfRx_DATA_MASK) >> 4;
 
     if (!OpenPfRxVerifyToggleBit(rxdata, channel))
-        return; // skip function if toggle bit is not different than previous message. Timeout not observed.
+        return; // Skip if toggle bit matches previous message; timeout is not observed.
 
     switch (function)
     {
@@ -206,7 +206,7 @@ void OpenPfRxExtendedMode(const uint16_t *rxdata, volatile struct OpenPfRx_chann
             channel->channel_output[RED].pwmindex++;
             channel->channel_output[RED].pwmvalue = OpenPfRx_pwmvalues[channel->channel_output[RED].pwmindex];
 
-            if (!(channel->channel_output[RED].output_mode == OM_BWD || channel->channel_output[RED].output_mode == OM_FWD)) // If output not already delivering power
+            if (!(channel->channel_output[RED].output_mode == OM_BWD || channel->channel_output[RED].output_mode == OM_FWD)) // If output is not already driving power.
                 channel->channel_output[RED].output_mode = OM_FWD;
         }
 
@@ -246,7 +246,7 @@ void OpenPfRxExtendedMode(const uint16_t *rxdata, volatile struct OpenPfRx_chann
         break;
     }
 
-    case 0b0110: // toggle address bit
+    case 0b0110: // Toggle address bit.
     {
         uint8_t temp = channel->channel_number;
 
@@ -255,23 +255,23 @@ void OpenPfRxExtendedMode(const uint16_t *rxdata, volatile struct OpenPfRx_chann
         else
             temp = temp | 0b100;
 
-        // OpenPfRx_channel_init(channel, temp); // reset channel // TODO: opnieuw enablen
-        OpenPfRx_channel_init(channel, temp); // reset channel
+        // OpenPfRx_channel_init(channel, temp); // Reset channel. TODO: re-enable previous variant if needed.
+        OpenPfRx_channel_init(channel, temp); // Reset channel.
         break;
     }
 
-    case 0b0111: // align toggle bit; already done in intro
+    case 0b0111: // Align toggle bit; already done in function prologue.
         break;
 
     default:
-        OpenPfRx_channel_init(channel, channel->channel_number); // reset channel
+        OpenPfRx_channel_init(channel, channel->channel_number); // Reset channel.
     }
 }
 
 void OpenPfRxComboDirectMode(const uint16_t *rxdata, volatile struct OpenPfRx_channel *channel)
 {
-    // timeout
-    // toggle bit not verified
+    // Timeout is enabled.
+    // Toggle bit is not verified.
     // *LEGO8879 uses this mode when both red buttons are pressed simultaneously
     uint8_t data = (*rxdata & OpenPfRx_DATA_MASK) >> 4;
     uint8_t dataRED = data & 0x03;
@@ -290,7 +290,7 @@ void OpenPfRxSingleOutputMode(const uint16_t *rxdata, volatile struct OpenPfRx_c
     // Protocol used by LEGO 8879 remote control (inc/dec pwm, break then float)
     // Toggle bit verified for increment / decrement / toggle
     // Timeout ONLY for full forward and full backward
-    struct OpenPfRx_output *target_output;
+    volatile struct OpenPfRx_output *target_output;
 
     if (*rxdata & OpenPfRx_SINGLEOUTPUT_OUTPUT_MASK)
         target_output = &(channel->channel_output[BLUE]);
@@ -302,9 +302,9 @@ void OpenPfRxSingleOutputMode(const uint16_t *rxdata, volatile struct OpenPfRx_c
 
     if (*rxdata & OpenPfRx_SINGLEOUTPUT_CSTIDMODE_MASK) // Clear/Set/Toggle/Inc/Dec mode
     {
-        if (DDDD == 0110 || DDDD == 0111) // Full Forward and Full Backward have timeout
+        if (DDDD == 0b0110 || DDDD == 0b0111) // Full Forward and Full Backward have timeout
             channel->timeout_action = 1;
-        else // others haven't
+        else // all other commands do not use timeout
             channel->timeout_action = 0;
 
         switch (DDDD)
@@ -312,7 +312,7 @@ void OpenPfRxSingleOutputMode(const uint16_t *rxdata, volatile struct OpenPfRx_c
 
         case 0b0000: // Toggle Full Forward
         {
-            // TODO: verify with lego behavior; I guess that from any output state except full forward this goes to Full FWD, and toggles to stop next press
+            // PF spec: toggle full forward (Stop <-> Fwd)
             if (!verify_toggle)
                 return;
 
@@ -363,6 +363,8 @@ void OpenPfRxSingleOutputMode(const uint16_t *rxdata, volatile struct OpenPfRx_c
             default:
                 break; // do nothing if not driving, or independent.
             }
+
+            break;
         }
 
         case 0b0010: // Increment Numerical PWM
@@ -449,7 +451,7 @@ void OpenPfRxSingleOutputMode(const uint16_t *rxdata, volatile struct OpenPfRx_c
             break;
         }
 
-        case 0b0111: // Full Backward(timeout)
+        case 0b0111: // Full Backward (timeout)
         {
             target_output->pwmindex = PWM_FULL;
             target_output->pwmvalue = OpenPfRx_pwmvalues[target_output->pwmindex];
@@ -473,23 +475,23 @@ void OpenPfRxSingleOutputMode(const uint16_t *rxdata, volatile struct OpenPfRx_c
             break;
         }
 
-        case 0b1001: // Clear C1 (negative logic, C1 High)
+        case 0b1001: // Clear C1 (negative logic, C1 high)
         {
-            // TODO: what happens to C2 after full forward / backward / brake? unknown....
+            // TODO: confirm how C2 should behave after FWD/BWD/BRAKE transitions.
             target_output->output_mode = OM_INDEPENDENT;
             target_output->C1 = 1;
             break;
         }
 
-        case 0b1010: // Set C1 (negative logic, C1 Low)
+        case 0b1010: // Set C1 (negative logic, C1 low)
         {
-            // TODO: what happens to C2 after full forward / backward / brake? unknown....
+            // TODO: confirm how C2 should behave after FWD/BWD/BRAKE transitions.
             target_output->output_mode = OM_INDEPENDENT;
             target_output->C1 = 0;
             break;
         }
 
-        case 0b1011: // ToggleC1
+        case 0b1011: // Toggle C1
         {
             if (!verify_toggle)
                 return;
@@ -500,25 +502,26 @@ void OpenPfRxSingleOutputMode(const uint16_t *rxdata, volatile struct OpenPfRx_c
                 target_output->C1 = 1;
 
             target_output->output_mode = OM_INDEPENDENT;
+            break;
         }
 
-        case 0b1100: // Clear C2 (negative logic, C2 High)
+        case 0b1100: // Clear C2 (negative logic, C2 high)
         {
-            // TODO: what happens to C1 after full forward / backward / brake? unknown....
+            // TODO: confirm how C1 should behave after FWD/BWD/BRAKE transitions.
             target_output->output_mode = OM_INDEPENDENT;
             target_output->C2 = 1;
             break;
         }
 
-        case 0b1101: // Set C2 (negative logic, C2 Low)
+        case 0b1101: // Set C2 (negative logic, C2 low)
         {
-            // TODO: what happens to C1 after full forward / backward / brake? unknown....
+            // TODO: confirm how C1 should behave after FWD/BWD/BRAKE transitions.
             target_output->output_mode = OM_INDEPENDENT;
             target_output->C2 = 0;
             break;
         }
 
-        case 0b1110: // ToggleC2
+        case 0b1110: // Toggle C2
         {
             if (!verify_toggle)
                 return;
@@ -529,6 +532,7 @@ void OpenPfRxSingleOutputMode(const uint16_t *rxdata, volatile struct OpenPfRx_c
                 target_output->C2 = 1;
 
             target_output->output_mode = OM_INDEPENDENT;
+            break;
         }
 
         case 0b1111: // Toggle Full Backward
@@ -588,10 +592,10 @@ uint8_t OpenPfRxVerifyToggleBit(const uint16_t *rxdata, volatile struct OpenPfRx
 
 uint8_t OpenPfRxGetChannelNumber(uint16_t rxdata)
 {
-    uint8_t temp = ((rxdata & OpenPfRx_CHANNEL_MASK) >> 12); // create address from CC bits
+    uint8_t ch = ((rxdata & OpenPfRx_CHANNEL_MASK) >> 12); // create address from CC bits
 
     if (rxdata & OpenPfRx_ADDRESS_MASK)
-        temp |= 0x04; // with 'a' bit as MSB. Preparation for address extension!
+        ch |= 0x04; // with 'a' bit as MSB. Preparation for address extension!
 
-    return temp;
+    return ch;
 }
