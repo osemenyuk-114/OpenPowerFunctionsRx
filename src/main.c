@@ -77,10 +77,9 @@ volatile uint8_t ChButtonState = 0;
 
 ISR(EXTERNAL_INTERRUPT, ISR_NOBLOCK) // External interrupt handler
 {
-    // DISABLE_IR_INT; // Disable pin-change interrupt; timer ISR re-enables it.
     RESET_IR_TIMER;
 
-    if (ChButtonState == 0)
+    if (!ChButtonState)
         ChButtonState = 1;
 
     OpenPfRxPinInterruptState(); // Process counter/pin state to gather IR data.
@@ -202,11 +201,11 @@ int main()
 
     // --- Channel / output initialization ---
     sleep_disable();
-    
+
     // Initialize EEPROM on first startup (detect uninitialized state = 0xFF)
     uint8_t eeprom_channel_raw = eeprom_read_u8(EEPROM_ADDRESS_CHANNEL);
     uint8_t eeprom_output_raw = eeprom_read_u8(EEPROM_ADDRESS_CHANNEL_OUTPUT);
-    
+
     if (eeprom_channel_raw == 0xFF && eeprom_output_raw == 0xFF)
     {
         // First startup: initialize with defaults (ch1 = 0, red output = 0)
@@ -340,7 +339,7 @@ int main()
                     if (enablepwma)
                     {
                         a_mask = ~(A_C1 | A_C2);
-                        a_pwm = (channel_pwm.channel_output[channeloutput].pwmvalue);
+                        a_pwm = channel_pwm.channel_output[channeloutput].pwmvalue;
                     }
                     else
                     {
@@ -352,7 +351,7 @@ int main()
                     if (enablepwmb)
                     {
                         b_mask = ~(B_C1 | B_C2);
-                        b_pwm = (channel_pwm.channel_output[secondchannel].pwmvalue);
+                        b_pwm = channel_pwm.channel_output[secondchannel].pwmvalue;
                     }
                     else
                     {
@@ -414,7 +413,7 @@ int main()
 #if (NumberOfOutputChannels == 2)
                             secondchannel = channeloutput ^ 0x01;
 #endif
-                            temp_channel = (channel_pwm.channel_number) & 0x03;
+                            temp_channel = channel_pwm.channel_number & 0x03;
                             eeprom_write_u8(EEPROM_ADDRESS_CHANNEL_OUTPUT, channeloutput);
                         }
                         else

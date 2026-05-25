@@ -69,18 +69,6 @@ void OpenPfRx_channel_init(volatile struct OpenPfRx_channel *channel, uint8_t nu
     channel->toggle = 0;
 }
 
-uint8_t OpenPfRxVerifyChecksum(uint16_t data)
-{
-    uint8_t lrc = data & 0x0F;
-    uint16_t temp = (data >> 12) ^ (data >> 8) ^ (data >> 4);
-    temp ^= 0xF;
-
-    if (((uint8_t)(temp & 0x0F)) == lrc)
-        return 1;
-
-    return 0;
-}
-
 void OpenPfRxPinInterruptState()
 {
     switch (OpenPfRx_rx.state)
@@ -118,7 +106,7 @@ void OpenPfRxPinInterruptState()
             if (OpenPfRx_rx.bit_count == 16) // Last bit received.
                 OpenPfRx_rx.state = WAIT_FOR_STOP;
             else
-                OpenPfRx_rx.rxdata = (OpenPfRx_rx.rxdata << 1) & 0xFFFE;
+                OpenPfRx_rx.rxdata <<= 1;
         }
         else
             OpenPfRx_rx.state = IDLE;
@@ -153,10 +141,7 @@ void OpenPfRxInterpreter(const uint16_t *rxdata, volatile struct OpenPfRx_channe
             OpenPfRxComboDirectMode(rxdata, channel);
         else if (mode & OpenPfRx_SINGLE_OUTPUT_MODE)
             OpenPfRxSingleOutputMode(rxdata, channel);
-        else if (mode == OpenPfRx_RESERVED_1)
-            return;
-        else if (mode == OpenPfRx_RESERVED_2)
-            return;
+        // Reserved modes 2 and 3 are ignored
     }
 }
 
@@ -255,7 +240,6 @@ void OpenPfRxExtendedMode(const uint16_t *rxdata, volatile struct OpenPfRx_chann
         else
             temp = temp | 0b100;
 
-        // OpenPfRx_channel_init(channel, temp); // Reset channel. TODO: re-enable previous variant if needed.
         OpenPfRx_channel_init(channel, temp); // Reset channel.
         break;
     }
@@ -573,29 +557,4 @@ void OpenPfRxSingleOutputMode(const uint16_t *rxdata, volatile struct OpenPfRx_c
         target_output->pwmvalue = OpenPfRx_pwmvalues[target_output->pwmindex];
         channel->timeout_action = 0;
     }
-}
-
-// returns 1 if toggle bit is valid (new message)
-uint8_t OpenPfRxVerifyToggleBit(const uint16_t *rxdata, volatile struct OpenPfRx_channel *channel)
-{
-    uint8_t toggle_bit = 0;
-
-    if (*rxdata & OpenPfRx_TOGGLE_MASK) // toggle bit set at message
-        toggle_bit = 1;
-
-    if (toggle_bit == channel->toggle)
-        return 0;
-
-    channel->toggle = toggle_bit;
-    return 1;
-}
-
-uint8_t OpenPfRxGetChannelNumber(uint16_t rxdata)
-{
-    uint8_t ch = ((rxdata & OpenPfRx_CHANNEL_MASK) >> 12); // create address from CC bits
-
-    if (rxdata & OpenPfRx_ADDRESS_MASK)
-        ch |= 0x04; // with 'a' bit as MSB. Preparation for address extension!
-
-    return ch;
 }
